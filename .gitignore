@@ -1,0 +1,7 @@
+dist/
+
+node_modules/
+
+.env
+
+src/config/firebase/payoffbar-firebase-adminsdk-p5hxp-fcd8e8ca1d.json

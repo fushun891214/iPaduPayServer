@@ -1,0 +1,20 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8081:8081"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/payOffBar
+    depends_on:
+      - mongo
+
+  mongo:
+    platform: linux/amd64  # 只在 service 級別指定 platform
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+volumes:
+  mongodb_data:
