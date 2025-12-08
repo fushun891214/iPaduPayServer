@@ -1,7 +1,7 @@
 console.log("=== Starting app ===");
+import "dotenv/config";
 import express, { Express } from "express";
 import cors from "cors";
-import connectDB from "./config/database";
 import userRoutes from "./routes/userRoutes";
 import friendRoutes from "./routes/friendRoutes";
 import groupRoutes from "./routes/groupRoutes";
@@ -25,7 +25,8 @@ app.get("/", (req, res) => {
 const PORT = process.env.API_SERVER_PORT || 8081;
 const startServer = async () => {
   try {
-    await connectDB();
+    // Prisma connects lazily, but we can force a connection check
+    // Or just start the server.
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });

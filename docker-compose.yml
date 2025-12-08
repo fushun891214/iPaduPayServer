@@ -4,17 +4,22 @@ services:
     ports:
       - "8081:8081"
     environment:
-      - MONGO_URI=mongodb://mongo:27017/payOffBar
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/ipadupay?schema=public
     depends_on:
-      - mongo
+      - postgres
 
-  mongo:
-    platform: linux/amd64  # 只在 service 級別指定 platform
-    image: mongo:latest
+  postgres:
+    image: postgres:15-alpine
     ports:
-      - "27017:27017"
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=ipadupay
     volumes:
-      - mongodb_data:/data/db
+      - postgres_data:/var/lib/postgresql/data
 
 volumes:
-  mongodb_data:
+  postgres_data:
+
+

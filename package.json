@@ -1,5 +1,5 @@
 {
-  "name": "payoffbar",
+  "name": "ipadupay",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -17,15 +17,17 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "firebase-admin": "^13.0.2",
-    "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.9.0"
+    "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
+    "@prisma/client": "^5.22.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.10.2",
+    "axios": "^1.13.2",
     "nodemon": "^3.1.9",
+    "prisma": "^5.22.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2"
   }

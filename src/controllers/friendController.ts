@@ -1,157 +1,130 @@
 import { Request, Response } from "express";
-import User from "../models/user";
-import Friend from "../models/friend";
-import friend from "../models/friend";
+import prisma from "../config/prisma";
+import { FriendStatus } from "@prisma/client";
 
 export const addFriend = async (req: Request, res: Response) => {
     try {
         const { userID, friendID } = req.body;
-        // console.log('Request body:', req.body);
-        // console.log('Current user:', req.user);
 
-        // 查詢發送好友邀請的用戶
-        const user = await User.findOne({ userID:userID });
-        // 查找要加為好友的用戶
-        const friendUser = await User.findOne({ userID:friendID });
+        // 簡單檢查不能加自己
+        if (userID === friendID) {
+            return res.status(400).json({
+                success: false,
+                message: "Cannot add yourself as friend",
+            });
+        }
+
+        // 檢查兩個用戶是否存在
+        const [user, friendUser] = await Promise.all([
+            prisma.user.findUnique({ where: { id: userID } }),
+            prisma.user.findUnique({ where: { id: friendID } }),
+        ]);
 
         if (!user || !friendUser) {
             return res.status(404).json({
                 success: false,
-                message: 'One or both users not found'
+                message: "One or both users not found",
             });
         }
 
-        // 從 auth 中間件獲取當前用戶信息
-        // const currentUser = req.user;
-        // if (!currentUser) {
-        //     return res.status(401).json({
-        //         success: false,
-        //         message: 'Not authenticated'
-        //     });
-        // }
-
-        // 檢查是否嘗試加自己為好友
-        if (userID === friendID) {
-            return res.status(400).json({
-                success: false,
-                message: 'Cannot add yourself as friend'
-            });
-        }
-
-        // 檢查是否已經是好友
-        const existingFriendship = await Friend.findOne({
-            $or: [
-                { userID: userID, friendID: friendID },
-                { userID: friendID, friendID: userID }
-            ]
+        // 檢查是否已經是好友 (雙向檢查)
+        const existingFriendship = await prisma.friend.findFirst({
+            where: {
+                OR: [
+                    { requesterId: userID, recipientId: friendID },
+                    { requesterId: friendID, recipientId: userID },
+                ],
+            },
         });
 
         if (existingFriendship) {
             return res.status(400).json({
                 success: false,
-                message: 'Friend request already exists or users are already friends'
+                message: "Friend request already exists or users are already friends",
             });
         }
 
-        // 打印詳細信息
-        // console.log('Creating friendship with:', {
-        //     userID: currentUser.userID,
-        //     friendID: userID,
-        //     userName: currentUser.userName,
-        //     friendName: userName
-        // });
-
         // 創建新的好友關係
-        const newFriendship = await Friend.create({
-            userID: userID,
-            friendID: friendID,
-            status: 'accepted'
+        // 這裡我們假設 addFriend 直接就是 ACCEPTED 狀態，與原邏輯一致
+        const newFriendship = await prisma.friend.create({
+            data: {
+                requesterId: userID,
+                recipientId: friendID,
+                status: FriendStatus.ACCEPTED,
+            },
         });
 
         return res.status(201).json({
             success: true,
             data: {
-                // friendshipId: newFriendship._id,
-                userID: newFriendship.userID,
-                friendID: newFriendship.friendID,
-                // userName: newFriendship.userName,
-                // friendName: newFriendship.friendName,
+                userID: newFriendship.requesterId,
+                friendID: newFriendship.recipientId,
                 status: newFriendship.status,
-                // createdAt: newFriendship.createdAt
-            }
+            },
         });
     } catch (error) {
-        console.error('Add friend error:', error);
+        console.error("Add friend error:", error);
         return res.status(500).json({
             success: false,
-            message: 'Error adding friend',
+            message: "Error adding friend",
         });
     }
 };
 
-export const getFriendshipList = async (req:Request, res:Response) => {
-    try{
-        const {userID} = req.body;
+export const getFriendshipList = async (req: Request, res: Response) => {
+    try {
+        const { userID } = req.body;
 
-        const user = await User.findOne({userID:userID});
-
-        if(!user){
+        // 檢查用戶存在
+        const user = await prisma.user.findUnique({ where: { id: userID } });
+        if (!user) {
             return res.status(404).json({
                 success: false,
-                message: 'user not found'
+                message: "user not found",
             });
         }
 
-        const friendshipList = await Friend.aggregate([
-            {
-                $match:{
-                    $or:[
-                        {userID:userID},
-                        {friendID:userID}
-                    ],
-                    status:'accepted'
-                }
+        // 查找所有相關的好友記錄 (我是發起者 OR 我是接收者) 且狀態為 ACCEPTED
+        const friendships = await prisma.friend.findMany({
+            where: {
+                OR: [{ requesterId: userID }, { recipientId: userID }],
+                status: FriendStatus.ACCEPTED,
             },
-            {
-                $group:{
-                    _id:{
-                        $cond:[
-                            {$eq:['$userID',userID]},
-                            "$friendID",
-                            "$userID"
-                        ]
-                    }
-                }
+            include: {
+                requester: true,
+                recipient: true,
             },
-        ]);
+        });
 
-        const friendDetails = await Promise.all(
-            friendshipList.map(async (friend) => {
-                const friendUser = await User.findOne({userID:friend._id});
-                return{
-                    userID: friendUser?.userID,
-                    userName: friendUser?.userName
-                }
-            })
-        )
+        // 整理回傳資料：找出"對方"是誰
+        const friendDetails = friendships.map((f) => {
+            const isRequester = f.requesterId === userID;
+            // 如果我是發起者，朋友就是接收者；反之亦然
+            const friendData = isRequester ? f.recipient : f.requester;
+            return {
+                userID: friendData.id,
+                userName: friendData.userName,
+            };
+        });
 
-        if(friendshipList.length === 0){
+        if (friendDetails.length === 0) {
             return res.status(200).json({
-                success:true,
-                data:[],
-                message:'No friends found'
-            })
+                success: true,
+                data: [],
+                message: "No friends found",
+            });
         }
 
         return res.status(200).json({
-            success:true,
-            data:friendDetails,
-            count:friendshipList.length
+            success: true,
+            data: friendDetails,
+            count: friendDetails.length,
         });
-    }catch(error){
+    } catch (error) {
+        console.error("Get friendship list error:", error);
         return res.status(500).json({
-            success:false,
-            message:'Error getting friendship list'
+            success: false,
+            message: "Error getting friendship list",
         });
     }
-}
+};

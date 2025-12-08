@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-PayOffBar is a Node.js/TypeScript backend API for managing group payments and expense splitting. It uses Express.js, MongoDB (Mongoose), and Firebase Cloud Messaging for push notifications.
+iPaduPay is a Node.js/TypeScript backend API for managing group payments and expense splitting. It uses Express.js, PostgreSQL (Prisma), and Firebase Cloud Messaging for push notifications.
 
 ## Development Commands
 
@@ -16,7 +16,7 @@ npm install
 ### Environment Configuration
 Create a `.env` file with:
 ```
-MONGO_URI=your_mongodb_url/collection_name
+DATABASE_URL="postgresql://postgres:password@localhost:5432/ipadupay?schema=public"
 API_SERVER_PORT=8081
 JWT_SECRET=your_secret_key
 DOCKER_ENV=true  # Optional: for Docker deployment
@@ -43,24 +43,20 @@ docker-compose up  # Run API + MongoDB
 
 ### Core Models & Relationships
 
-1. **User** (`src/models/user.ts`)
+Defined in `prisma/schema.prisma`.
+
+1. **User**
    - Stores user credentials and FCM tokens
-   - Fields: `userName`, `userID`, `fcmToken` (optional)
 
-2. **Group** (`src/models/group.ts`)
+2. **Group**
    - Represents payment groups
-   - Fields: `groupID`, `groupName`, `creatorID`
-   - One-to-many with GroupMember
 
-3. **GroupMember** (`src/models/groupMember.ts`)
+3. **GroupMember**
    - Tracks individual user amounts and payment status in groups
-   - Fields: `groupID`, `userID`, `amount`, `payStatus`
-   - Composite unique index on `(groupID, userID)`
+   - Many-to-Many relation with explicit fields `amount` and `payStatus`
 
-4. **Friend** (`src/models/friend.ts`)
-   - Manages friendship relationships (bidirectional)
-   - Fields: `userID`, `friendID`, `status` ('pending' | 'accepted')
-   - Composite unique index on `(userID, friendID)`
+4. **Friend**
+   - Manages friendship relationships
 
 ### Request Flow
 
@@ -86,10 +82,10 @@ Client Request
   - Payment status updates (`notifyUpdatePaymentStatus`)
 
 ### Database Connection
-- MongoDB connection logic in `src/config/database.ts`
+- PostgreSQL (Prisma) configuration in `prisma/schema.prisma`
 - Auto-detects Docker environment via `DOCKER_ENV` variable
-- Docker: `mongodb://mongodb:27017/payOffBar`
-- Local: `mongodb://localhost:27017/payOffBar`
+- Docker: `postgresql://postgres:password@postgres:5432/ipadupay`
+- Local: `postgresql://postgres:password@localhost:5432/ipadupay`
 
 ## API Endpoints
 

@@ -1,0 +1,83 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id // userID
+  userName  String
+  fcmToken  String?
+  
+  createdGroups Group[]       @relation("CreatedGroups")
+  memberships   GroupMember[]
+  
+  // Friendships are a bit complex to model as undirected graph in SQL, 
+  // but typically we model directed edges and query accordingly.
+  // Friend requests sent by this user
+  sentFriendRequests     Friend[] @relation("UserSentRequest")
+  // Friend requests received by this user
+  receivedFriendRequests Friend[] @relation("UserReceivedRequest")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Group {
+  id        String   @id // groupID
+  groupName String
+  
+  creatorId String
+  creator   User     @relation("CreatedGroups", fields: [creatorId], references: [id])
+  
+  members   GroupMember[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model GroupMember {
+  // Using a composite ID or a surplus ID. Composite is cleaner for join table.
+  
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  amount    Int // Was number in mongoose, using Int or Float. Assuming Int for cents/minimal unit or generic currency.
+  payStatus Boolean @default(false)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([groupId, userId])
+}
+
+model Friend {
+  id        String   @id @default(uuid())
+  
+  requesterId String
+  requester   User   @relation("UserSentRequest", fields: [requesterId], references: [id])
+  
+  recipientId String
+  recipient   User   @relation("UserReceivedRequest", fields: [recipientId], references: [id])
+  
+  status      FriendStatus @default(PENDING)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([requesterId, recipientId])
+}
+
+enum FriendStatus {
+  PENDING
+  ACCEPTED
+}
