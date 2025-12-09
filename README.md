@@ -32,16 +32,20 @@
 ### 1. 前置需求 (Prerequisites)
 
 確保您的電腦已安裝：
--   [Node.js](https://nodejs.org/) (建議 v18 或 v20)
--   [Docker Desktop](https://www.docker.com/products/docker-desktop/) (用於執行 PostgreSQL 資料庫)
+-   [Docker Desktop](https://www.docker.com/products/docker-desktop/) (無論本地或 Docker 部署都需要，用於資料庫)
+-   [Node.js](https://nodejs.org/) (僅本地開發需要，建議 v20+)
 
-### 2. 安裝依賴 (Install Dependencies)
+---
+
+### 方法一：本地端開發與運行 (Local Development)
+
+#### 1. 安裝依賴 (Install Dependencies)
 
 ```bash
 npm install
 ```
 
-### 3. 環境變數設定 (Environment Setup)
+#### 2. 環境變數設定 (Environment Setup)
 
 請在專案根目錄建立 `.env` 檔案，內容如下：
 
@@ -57,24 +61,14 @@ DATABASE_URL="postgresql://postgres:password@localhost:5432/ipadupay?schema=publ
 JWT_SECRET=supersecretkey123
 ```
 
-> **注意**: `JWT_SECRET` 請務必設定，否則登入功能會失效。
+#### 3. Firebase 設定 (Important)
 
-### 4. Firebase 設定 (Important)
+本專案使用 Firebase 發送推播。請將您的 Firebase Service Account JSON 檔案放置於：
+`src/config/firebase/payoffbar-firebase-adminsdk-p5hxp-fcd8e8ca1d.json`
 
-本專案使用 Firebase 發送推播。由於資安考量，私鑰檔案不包含在 Git 版控中。
+並確保 `src/config/firebase.ts` 中的導入代碼已正確設置。
 
-1.  請將您的 Firebase Service Account JSON 檔案放置於：
-    `src/config/firebase/payoffbar-firebase-adminsdk-p5hxp-fcd8e8ca1d.json`
-2.  打開 `src/config/firebase.ts`，解除相關導入代碼的註解：
-    ```typescript
-    import serviceAccount from './firebase/payoffbar-firebase-adminsdk-p5hxp-fcd8e8ca1d.json';
-
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-    });
-    ```
-
-### 5. 啟動資料庫 (Database Setup)
+#### 4. 啟動資料庫 (Database Setup)
 
 使用 Docker Compose 啟動 PostgreSQL 容器：
 
@@ -82,7 +76,7 @@ JWT_SECRET=supersecretkey123
 docker-compose up -d
 ```
 
-### 6. 初始化資料庫 Schema (Prisma)
+#### 5. 初始化資料庫 Schema (Prisma)
 
 將 Prisma Schema 推送到資料庫：
 
@@ -90,13 +84,52 @@ docker-compose up -d
 npx prisma db push
 ```
 
-### 7. 啟動開發伺服器 (Run Development Server)
+#### 6. 啟動開發伺服器 (Run Development Server)
 
 ```bash
 npm run dev
 ```
 
 伺服器預設將運行在 `http://localhost:8081`。
+
+---
+
+### 方法二：Docker 容器化部署 (Docker Compose)
+
+由於專案已包含 `docker-compose.yml`，這是最簡單的部署方式。它會同時啟動 PostgreSQL 資料庫與 API 伺服器。
+
+#### 1. 設定環境變數
+
+請確保根目錄下的 `.env` 檔案已正確設定（參考上方），特別是 `JWT_SECRET`。
+`docker-compose` 會自動讀取 `.env` 檔案中的變數。
+
+#### 2. 啟動服務 (Start Services)
+
+執行以下指令來建置並啟動所有服務：
+
+```bash
+docker-compose up -d --build
+```
+
+這將會：
+1.  建置 API Server 的 Docker Image (`ipadupay-server`)。
+2.  啟動 PostgreSQL 資料庫容器 (`postgres`)。
+3.  啟動 API Server 容器 (`api`) 並連接到資料庫。
+
+#### 3. 初始化資料庫
+
+容器啟動後，第一次運行需要推送 Schema：
+
+```bash
+# 透過 API 容器執行 prisma db push
+docker-compose exec api npx prisma db push
+```
+
+#### 4. 驗證
+
+API 伺服器現在應該運行在 `http://localhost:8081`。
+
+> **提示**: 若要停止並移除所有容器，請執行 `docker-compose down`。
 
 ---
 
