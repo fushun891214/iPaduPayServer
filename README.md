@@ -108,7 +108,7 @@ npm run dev
 執行以下指令來建置並啟動所有服務：
 
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 這將會：
@@ -122,7 +122,7 @@ docker-compose up -d --build
 
 ```bash
 # 透過 API 容器執行 prisma db push
-docker-compose exec api npx prisma db push
+docker compose exec api npx prisma db push
 ```
 
 #### 4. 驗證
